@@ -173,6 +173,3 @@ if ctx.video_processor:
 
     st.session_state.mask_count = ctx.video_processor.mask_count
     st.session_state.no_mask_count = ctx.video_processor.no_mask_count
-
-time.sleep(1)
-st.rerun()
