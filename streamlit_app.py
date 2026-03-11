@@ -7,7 +7,6 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
 import os
-import gdown
 import pandas as pd
 import time
 
@@ -18,18 +17,6 @@ if "no_mask_count" not in st.session_state:
     st.session_state.no_mask_count = 0
 
 MODEL_PATH = "face_mask_detector.h5"
-
-def download_model():
-
-    if not os.path.exists(MODEL_PATH):
-
-        file_id = "1LmR-juV4KXUmJvuDu5hxB8K0oDdMJukF"
-
-        url = f"https://drive.google.com/uc?id={file_id}"
-
-        print("Downloading model from Google Drive...")
-
-        gdown.download(url, MODEL_PATH, quiet=False)
 
 # Build model architecture
 def build_model():
@@ -54,14 +41,12 @@ def build_model():
 @st.cache_resource
 def load_resources():
 
-    download_model()
-
     model = build_model()
 
     model.load_weights(MODEL_PATH)
 
     face_cascade = cv2.CascadeClassifier(
-        "haarcascade_frontalface_default.xml"
+        os.path.join(os.getcwd(),"haarcascade_frontalface_default.xml")
     )
 
     print("Cascade loaded:", not face_cascade.empty())
@@ -162,14 +147,19 @@ st.subheader("Live Detection")
 ctx = webrtc_streamer(
     key="mask-detection",
     video_processor_factory=VideoProcessor,
-
+    rtc_configuration={
+        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+    },
     media_stream_constraints={
         "video": True,
         "audio": False
-    }
+    },
 )
 
 if ctx.video_processor:
 
     st.session_state.mask_count = ctx.video_processor.mask_count
     st.session_state.no_mask_count = ctx.video_processor.no_mask_count
+
+time.sleep(1)
+st.rerun()

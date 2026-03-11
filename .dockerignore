@@ -1,0 +1,17 @@
+.venv
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.tmp
+.env
+.vscode
+.idea
+notebooks
+data
+datasets
+models
+*.ipynb
