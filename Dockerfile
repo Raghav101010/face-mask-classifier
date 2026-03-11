@@ -4,6 +4,14 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    pkg-config \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavutil-dev \
+    libavfilter-dev \
+    libswscale-dev \
+    libswresample-dev \
     libsm6 \
     libxext6 \
     libgl1
