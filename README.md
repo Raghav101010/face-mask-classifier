@@ -3,7 +3,7 @@ title: Real-Time Face Mask Detection
 emoji: 😷
 colorFrom: blue
 colorTo: green
-sdk: streamlit
+sdk: docker
 app_file: streamlit_app.py
 pinned: false
 ---
