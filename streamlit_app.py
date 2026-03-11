@@ -162,9 +162,6 @@ st.subheader("Live Detection")
 ctx = webrtc_streamer(
     key="mask-detection",
     video_processor_factory=VideoProcessor,
-    rtc_configuration={
-        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
-    },
 
     media_stream_constraints={
         "video": True,
