@@ -71,57 +71,65 @@ def load_resources():
 
 model, face_cascade = load_resources()
 
+frame_skip = 3
 
 class VideoProcessor(VideoProcessorBase):
 
     def __init__(self):
         self.mask_count = 0
         self.no_mask_count = 0
+        self.counter = 0
 
     def recv(self, frame):
 
         img = frame.to_ndarray(format="bgr24")
 
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        self.counter += 1
 
-        faces = face_cascade.detectMultiScale(
-            gray,
-            scaleFactor=1.1,
-            minNeighbors=4,
-            minSize=(30,30)
-        )
+        # Run detection every N frames
+        if self.counter % frame_skip == 0:
 
-        for (x, y, w, h) in faces:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-            face = img[y:y+h, x:x+w]
-
-            face = cv2.resize(face,(150,150))
-            face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
-            face = face.astype("float32")/255.0
-            face = np.expand_dims(face, axis=0)
-
-            pred = model(face, training=False).numpy()[0][0]
-
-            if pred < 0.5:
-                label = "Mask"
-                color = (0,255,0)
-                self.mask_count += 1
-            else:
-                label = "No Mask"
-                color = (0,0,255)
-                self.no_mask_count += 1
-
-            cv2.rectangle(img,(x,y),(x+w,y+h),color,2)
-
-            cv2.putText(
-                img,
-                label,
-                (x,y-10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                color,
-                2
+            faces = face_cascade.detectMultiScale(
+                gray,
+                scaleFactor=1.1,
+                minNeighbors=4,
+                minSize=(30,30)
             )
+
+            for (x, y, w, h) in faces:
+
+                face = img[y:y+h, x:x+w]
+
+                # Frame resizing
+                face = cv2.resize(face,(150,150))
+                face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
+                face = face.astype("float32")/255.0
+                face = np.expand_dims(face, axis=0)
+
+                pred = model(face, training=False).numpy()[0][0]
+
+                if pred < 0.5:
+                    label = "Mask"
+                    color = (0,255,0)
+                    self.mask_count += 1
+                else:
+                    label = "No Mask"
+                    color = (0,0,255)
+                    self.no_mask_count += 1
+
+                cv2.rectangle(img,(x,y),(x+w,y+h),color,2)
+
+                cv2.putText(
+                    img,
+                    label,
+                    (x,y-10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    color,
+                    2
+                )
 
         return av.VideoFrame.from_ndarray(img, format="bgr24")
 
@@ -154,6 +162,14 @@ st.subheader("Live Detection")
 ctx = webrtc_streamer(
     key="mask-detection",
     video_processor_factory=VideoProcessor,
+    rtc_configuration={
+        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+    },
+
+    media_stream_constraints={
+        "video": True,
+        "audio": False
+    }
 )
 
 if ctx.video_processor:
