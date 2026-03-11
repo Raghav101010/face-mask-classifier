@@ -70,12 +70,17 @@ Project Structure
 
 The trained model is downloaded automatically at runtime.
 
+Deployment at Hugging Face Space:
+
+    https://huggingface.co/spaces/raghav101010/face-mask-classifier
+
+
 Future Improvements
 
     Replace Haar Cascade with a deep learning face detector
     Improve model accuracy with larger datasets
     Deploy optimized lightweight model
-    Add mask compliance analytics dashboard    
+    Add mask compliance analytics dashboard  
 
 Author
 
