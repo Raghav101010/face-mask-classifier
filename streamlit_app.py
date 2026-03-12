@@ -7,6 +7,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
 import os
+import gdown
 import pandas as pd
 import time
 
@@ -17,6 +18,18 @@ if "no_mask_count" not in st.session_state:
     st.session_state.no_mask_count = 0
 
 MODEL_PATH = "face_mask_detector.h5"
+
+def download_model():
+
+    if not os.path.exists(MODEL_PATH):
+
+        file_id = "1LmR-juV4KXUmJvuDu5hxB8K0oDdMJukF"
+
+        url = f"https://drive.google.com/uc?id={file_id}"
+
+        print("Downloading model from Google Drive...")
+
+        gdown.download(url, MODEL_PATH, quiet=False)
 
 # Build model architecture
 def build_model():
@@ -41,12 +54,14 @@ def build_model():
 @st.cache_resource
 def load_resources():
 
+    download_model()
+
     model = build_model()
 
     model.load_weights(MODEL_PATH)
 
     face_cascade = cv2.CascadeClassifier(
-        os.path.join(os.getcwd(),"haarcascade_frontalface_default.xml")
+        "haarcascade_frontalface_default.xml"
     )
 
     print("Cascade loaded:", not face_cascade.empty())
@@ -56,65 +71,57 @@ def load_resources():
 
 model, face_cascade = load_resources()
 
-frame_skip = 3
 
 class VideoProcessor(VideoProcessorBase):
 
     def __init__(self):
         self.mask_count = 0
         self.no_mask_count = 0
-        self.counter = 0
 
     def recv(self, frame):
 
         img = frame.to_ndarray(format="bgr24")
 
-        self.counter += 1
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        # Run detection every N frames
-        if self.counter % frame_skip == 0:
+        faces = face_cascade.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=4,
+            minSize=(30,30)
+        )
 
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        for (x, y, w, h) in faces:
 
-            faces = face_cascade.detectMultiScale(
-                gray,
-                scaleFactor=1.1,
-                minNeighbors=4,
-                minSize=(30,30)
+            face = img[y:y+h, x:x+w]
+
+            face = cv2.resize(face,(150,150))
+            face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
+            face = face.astype("float32")/255.0
+            face = np.expand_dims(face, axis=0)
+
+            pred = model(face, training=False).numpy()[0][0]
+
+            if pred < 0.5:
+                label = "Mask"
+                color = (0,255,0)
+                self.mask_count += 1
+            else:
+                label = "No Mask"
+                color = (0,0,255)
+                self.no_mask_count += 1
+
+            cv2.rectangle(img,(x,y),(x+w,y+h),color,2)
+
+            cv2.putText(
+                img,
+                label,
+                (x,y-10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                color,
+                2
             )
-
-            for (x, y, w, h) in faces:
-
-                face = img[y:y+h, x:x+w]
-
-                # Frame resizing
-                face = cv2.resize(face,(150,150))
-                face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
-                face = face.astype("float32")/255.0
-                face = np.expand_dims(face, axis=0)
-
-                pred = model(face, training=False).numpy()[0][0]
-
-                if pred < 0.5:
-                    label = "Mask"
-                    color = (0,255,0)
-                    self.mask_count += 1
-                else:
-                    label = "No Mask"
-                    color = (0,0,255)
-                    self.no_mask_count += 1
-
-                cv2.rectangle(img,(x,y),(x+w,y+h),color,2)
-
-                cv2.putText(
-                    img,
-                    label,
-                    (x,y-10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    color,
-                    2
-                )
 
         return av.VideoFrame.from_ndarray(img, format="bgr24")
 
@@ -147,13 +154,6 @@ st.subheader("Live Detection")
 ctx = webrtc_streamer(
     key="mask-detection",
     video_processor_factory=VideoProcessor,
-    rtc_configuration={
-        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
-    },
-    media_stream_constraints={
-        "video": True,
-        "audio": False
-    },
 )
 
 if ctx.video_processor:
